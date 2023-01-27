@@ -15,8 +15,6 @@ class Dboss {
 
         HashMap options = new Options().getOptions(args)
 
-        options.println()
-
         def ret = new WorkFlow().execute(options)
 
         (options.get("verbose") == "y" || options.get("verbose") == "Y") ? println(CodeMessage.geMessageByValue(ret)) : null
@@ -100,16 +98,6 @@ enum CodeMessage {
         }
         return null
     }
-
-    static int geValue(int value) {
-        for (CodeMessage e : values()) {
-            if (e.value == value) {
-                return e.value()
-            }
-        }
-        return null
-    }
-
 
 }
 
