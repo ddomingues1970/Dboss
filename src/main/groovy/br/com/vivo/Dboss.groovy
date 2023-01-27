@@ -82,24 +82,18 @@ class Options {
 
     HashMap getOptions(String[] args) {
 
-        def cli = new CliBuilder(usage: 'groovy Dboss.groovy -u= -p=')
-
-        /*
-        vGitRepository=$1
-        --vgitUser
-        --vGitPassword=$3
-        vGitBranch=$4
-        vDatabaseEnv=$5
-        vDatabaseUser=$6
-        vDatabasePassword=$7
-        vOperation=$8
-        vRelease=$9
-        vProjectID=${10}
-        */
+        def cli = new CliBuilder(usage: 'groovy Dboss.groovy -u= -p= -b= -e= -d= -s= -o= -r= -i=')
 
         cli.with {
-            u longOpt: 'gitUser', args: 1, argName: 'gitUser', required: true, 'Git user name'
+            u longOpt: 'gitUsfr', args: 1, argName: 'gitUser', required: true, 'Git user name'
             p longOpt: 'gitPassword', args: 1, argName: 'gitPassword', required: true, 'Git password'
+            b longOpt: 'gitBranch', args: 1, argName: 'gitBranch', required: true, 'Git branch'
+            e longOpt: 'dataBaseEnv', args: 1, argName: 'dataBaseEnv', required: true, 'Database env'
+            d longOpt: 'dataBaseUser', args: 1, argName: 'dataBaseUser', required: true, 'Database user'
+            s longOpt: 'dataBasePassword', args: 1, argName: 'dataBasePassword', required: true, 'Database password'
+            o longOpt: 'operation', args: 1, argName: 'operation', required: true, 'Operation'
+            r longOpt: 'release', args: 1, argName: 'release', required: true, 'Release'
+            i longOpt: 'projectId', args: 1, argName: 'projectId', required: true, 'Project Id'
         }
 
         def optionMap = [:]
@@ -108,25 +102,19 @@ class Options {
             return optionMap
         }
 
-        optionMap["gitUser"] = options.u ?: options.gitUser
+        optionMap["gitUser"] = options.gu ?: options.gitUser
         optionMap["gitPassword"] = options.p ?: options.gitPassword
+        optionMap["gitBranch"] = options.b ?: options.gitBranch
+        optionMap["dataBaseEnv"] = options.e ?: options.dataBaseEnv
+        optionMap["dataBaseUser"] = options.d ?: options.dataBaseUser
+        optionMap["dataBasePassword"] = options.s ?: options.dataBasePassword
+        optionMap["operation"] = options.o ?: options.operation
+        optionMap["release"] = options.r ?: options.release
+        optionMap["projectId"] = options.i ?: options.projectId
 
-        println("OPtionsMap size:" + optionMap.size())
-        println(optionMap.get("gitUser"))
-        println(optionMap.get("gitPassword"))
+        println optionMap //TODO: Remover
 
         return optionMap
-
-    }
-
-}
-
-
-class Util {
-
-    static splitStringBySign(String sign, String value) {
-
-        return Arrays.asList(value.split(sign, value))
 
     }
 
