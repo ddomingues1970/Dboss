@@ -1,5 +1,5 @@
 {
-  "config" : {
-    "gitBaseDirectory" : "/home/user1/Vivo"
+  "database" : {
+    "gsim_dev" : "jdbc:oracle:thin:@10.129.178.133:1521/gsimdsv"
   }
 }

@@ -1,3 +1,5 @@
+#!/usr/bin/env groovy
+
 package br.com.vivo
 
 // https://mvnrepository.com/artifact/org.codehaus.groovy/groovy-cli-commons
@@ -17,22 +19,27 @@ class Dboss {
 
         def ret = new WorkFlow().execute(options)
 
-        System.out.println(CodeMessage.geMessageByValue(ret))
+        (options.get("verbose") == "y" || options.get("verbose") == "Y") ? println(CodeMessage.geMessageByValue(ret)) : null
+
+        System.out.println(ret)
 
     }
 }
 
 class WorkFlow {
 
-    int execute(HashMap options) {
+    static int execute(HashMap options) {
 
-        //TODO: implement Validations
-        def validation = new Validation()
-        def directory = System.getenv("PWD") + "/Git/"
-        options.get("verbose") == "y" ? println("STEP 1 - " + CodeMessage.VALIDATING_GIT_DIRECTORY.message() + ":" + directory ) : null
-        def ret = validation.validateGitDirectory(directory)
+        def BASE_GIT_DIRECTORY = "/Git/"
+        def current_directory = System.getenv("PWD") + BASE_GIT_DIRECTORY
+        def verbose = (options.get("verbose") == "y" || options.get("verbose") == "Y")
 
-        return CodeMessage.SUCCESS.value()
+        verbose ? println("STEP 1 - " + CodeMessage.VALIDATING_GIT_DIRECTORY.message() + ":" + current_directory) : null
+        def ret = Validation.validateGitDirectory(current_directory)
+
+        //TODO: Implment other executions
+
+        return ret
 
     }
 
@@ -40,9 +47,7 @@ class WorkFlow {
 
 class Validation {
 
-    //TODO: Implement validation methods
-
-    int validateGitDirectory(String directory) {
+    static int validateGitDirectory(String directory) {
 
         if (Util.isDirectory(directory)) {
             return CodeMessage.SUCCESS.value()
@@ -58,6 +63,8 @@ class Validation {
 
         println(CodeMessage.CREATING_DIRECTORY_FAILED.message() + " : " + directory)
         System.exit(CodeMessage.CREATING_DIRECTORY_FAILED.value())
+
+        return CodeMessage.CREATING_DIRECTORY_FAILED.value()
 
     }
 
@@ -81,17 +88,26 @@ enum CodeMessage {
     private final int value
     private final String message
 
-    public int value() { return value }
+    int value() { return value }
 
-    public String message() { return message }
+    String message() { return message }
 
-    public static String geMessageByValue(int value) {
+    static String geMessageByValue(int value) {
         for (CodeMessage e : values()) {
             if (e.value == value) {
-                return e.message();
+                return e.message()
             }
         }
-        return null;
+        return null
+    }
+
+    static int geValue(int value) {
+        for (CodeMessage e : values()) {
+            if (e.value == value) {
+                return e.value()
+            }
+        }
+        return null
     }
 
 
@@ -112,8 +128,8 @@ class Options {
             s longOpt: 'dataBasePassword', args: 1, argName: 'dataBasePassword', required: true, 'Database password'
             o longOpt: 'operation', args: 1, argName: 'operation', required: true, 'Operation. execution or rollback'
             r longOpt: 'release', args: 1, argName: 'release', required: true, 'Release. YYYYMMDDEX (YEARMONTHDAYESTEIRAID) Ex. 2023'
-            i longOpt: 'projectId', args: 1, argName: 'projectId', required: true, 'Project Id'
-            v longOpt: 'verbose', args: 1, argName: 'verbose', required: false, 'Verbose output (y/n)'
+            i longOpt: 'projectId', args: 1, argName: 'projectId', required: true, 'Project Id. Ex. PTI1808'
+            v longOpt: 'verbose', args: 1, argName: 'verbose', required: false, defaultValue: 'n', 'Optional - Verbose output (y/n)'
         }
 
         def optionMap = [:]
@@ -131,12 +147,7 @@ class Options {
         optionMap["operation"] = options.o ?: options.operation
         optionMap["release"] = options.r ?: options.release
         optionMap["projectId"] = options.i ?: options.projectId
-
-        if(options.v || options.verbose) {
-            optionMap["verbose"] = options.v ?: options.verbose
-        } else {
-            optionMap["verbose"] = "n"
-        }
+        optionMap["verbose"] = options.v ?: options.verbose
 
         return optionMap
 
