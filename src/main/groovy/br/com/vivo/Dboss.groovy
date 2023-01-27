@@ -15,9 +15,9 @@ class Dboss {
 
         options.println()
 
-        //def ret = new WorkFlow().execute(options)
+        def ret = new WorkFlow().execute(options)
 
-        //System.out.println(ReturnCodeMessage.geMessageByValue(ret))
+        System.out.println(ReturnCodeMessage.geMessageByValue(ret))
 
     }
 }
@@ -26,9 +26,11 @@ class WorkFlow {
 
     int execute(HashMap options) {
 
-        options.forEach {
-            it.println()
-        }
+        //TODO: implement Validations
+
+        println options
+
+        return ReturnCodeMessage.SUCCESS_EXIT_CODE.value()
 
         //return new Validation().validateInputParameters(args)
 
@@ -38,14 +40,7 @@ class WorkFlow {
 
 class Validation {
 
-    int validateInputParameters(List<String> parameters) {
-
-        parameters.forEach {
-            System.out.println(it.toString())
-        }
-
-        return ReturnCodeMessage.SUCCESS_EXIT_CODE.value()
-    }
+    //TODO: Implement validation methods
 
 }
 
@@ -102,7 +97,7 @@ class Options {
             return optionMap
         }
 
-        optionMap["gitUser"] = options.gu ?: options.gitUser
+        optionMap["gitUser"] = options.u ?: options.gitUser
         optionMap["gitPassword"] = options.p ?: options.gitPassword
         optionMap["gitBranch"] = options.b ?: options.gitBranch
         optionMap["dataBaseEnv"] = options.e ?: options.dataBaseEnv
@@ -111,8 +106,6 @@ class Options {
         optionMap["operation"] = options.o ?: options.operation
         optionMap["release"] = options.r ?: options.release
         optionMap["projectId"] = options.i ?: options.projectId
-
-        println optionMap //TODO: Remover
 
         return optionMap
 
