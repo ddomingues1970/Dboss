@@ -1,10 +1,8 @@
 #!/usr/bin/env groovy
 
-package br.com.vivo
-
-// https://mvnrepository.com/artifact/org.codehaus.groovy/groovy-cli-commons
+//https://mvnrepository.com/artifact/org.codehaus.groovy/groovy-cli-commons
 @Grapes(
-        @Grab(group = 'org.codehaus.groovy', module = 'groovy-cli-commons', version = '3.0.14')
+        //@Grab(group = 'org.codehaus.groovy', module = 'groovy-cli-commons', version = '3.0.14')
 )
 
 import groovy.cli.commons.CliBuilder
@@ -17,7 +15,7 @@ class Dboss {
 
         def ret = new WorkFlow().execute(options)
 
-        (options.get("verbose") == "y" || options.get("verbose") == "Y") ? println(CodeMessage.geMessageByValue(ret)) : null
+        options.get("verbose") == "y" ? println(CodeMessage.geMessageByValue(ret)) : null
 
         System.out.println(ret)
 
@@ -30,7 +28,7 @@ class WorkFlow {
 
         def BASE_GIT_DIRECTORY = "/Git/"
         def current_directory = System.getenv("PWD") + BASE_GIT_DIRECTORY
-        def verbose = (options.get("verbose") == "y" || options.get("verbose") == "Y")
+        def verbose = options.get("verbose") == "y"
 
         verbose ? println("STEP 1 - " + CodeMessage.VALIDATING_GIT_DIRECTORY.message() + ":" + current_directory) : null
         def ret = Validation.validateGitDirectory(current_directory)
@@ -105,7 +103,7 @@ class Options {
 
     HashMap getOptions(String[] args) {
 
-        def cli = new CliBuilder(usage: 'groovy Dboss.groovy -u= -p= -b= -e= -d= -s= -o= -r= -i= [-v=]')
+        def cli = new CliBuilder(usage: 'groovy Dboss.groovy -u= -p= -b= -e= -d= -s= -o= -r= -i= [-v]')
 
         cli.with {
             u longOpt: 'gitUser', args: 1, argName: 'gitUser', required: true, 'Git user name Ex. 80830170'
@@ -117,7 +115,7 @@ class Options {
             o longOpt: 'operation', args: 1, argName: 'operation', required: true, 'Operation. execution or rollback'
             r longOpt: 'release', args: 1, argName: 'release', required: true, 'Release. YYYYMMDDEX (YEARMONTHDAYESTEIRAID) Ex. 2023'
             i longOpt: 'projectId', args: 1, argName: 'projectId', required: true, 'Project Id. Ex. PTI1808'
-            v longOpt: 'verbose', args: 1, argName: 'verbose', required: false, defaultValue: 'n', 'Optional - Verbose output (y/n)'
+            v longOpt: 'verbose', argName: 'verbose', required: false, 'Optional - Verbose output (y/n)'
         }
 
         def optionMap = [:]
@@ -135,7 +133,7 @@ class Options {
         optionMap["operation"] = options.o ?: options.operation
         optionMap["release"] = options.r ?: options.release
         optionMap["projectId"] = options.i ?: options.projectId
-        optionMap["verbose"] = options.v ?: options.verbose
+        optionMap["verbose"] = options.v ? "y" : "n"
 
         return optionMap
 
