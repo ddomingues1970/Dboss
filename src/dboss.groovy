@@ -2,7 +2,7 @@
 
 //https://mvnrepository.com/artifact/org.codehaus.groovy/groovy-cli-commons
 @Grapes(
-        //@Grab(group = 'org.codehaus.groovy', module = 'groovy-cli-commons', version = '3.0.14')
+        @Grab(group = 'org.codehaus.groovy', module = 'groovy-cli-commons', version = '3.0.14')
 )
 
 import groovy.cli.commons.CliBuilder
@@ -15,7 +15,9 @@ class Dboss {
 
         def ret = new WorkFlow().execute(options)
 
-        options.get("verbose") == "y" ? println(CodeMessage.geMessageByValue(ret)) : null
+        if(options.get("verbose") == "y") {
+            println(CodeMessage.geMessageByValue(ret))
+        }
 
         System.out.println(ret)
 
@@ -30,7 +32,10 @@ class WorkFlow {
         def current_directory = System.getenv("PWD") + BASE_GIT_DIRECTORY
         def verbose = options.get("verbose") == "y"
 
-        verbose ? println("STEP 1 - " + CodeMessage.VALIDATING_GIT_DIRECTORY.message() + ":" + current_directory) : null
+        if(verbose) {
+            println("STEP 1 - " + CodeMessage.VALIDATING_GIT_DIRECTORY.message() + ":" + current_directory)
+        }
+
         def ret = Validation.validateGitDirectory(current_directory)
 
         //TODO: Implment other executions
@@ -115,7 +120,7 @@ class Options {
             o longOpt: 'operation', args: 1, argName: 'operation', required: true, 'Operation. execution or rollback'
             r longOpt: 'release', args: 1, argName: 'release', required: true, 'Release. YYYYMMDDEX (YEARMONTHDAYESTEIRAID) Ex. 2023'
             i longOpt: 'projectId', args: 1, argName: 'projectId', required: true, 'Project Id. Ex. PTI1808'
-            v longOpt: 'verbose', argName: 'verbose', required: false, 'Optional - Verbose output (y/n)'
+            v longOpt: 'verbose', argName: 'verbose', required: false, 'Optional - Verbose flag Ex. -v)'
         }
 
         def optionMap = [:]
