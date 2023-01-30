@@ -1,0 +1,14 @@
+{
+	"database_connections_url" : {
+		"xcom_dev": "jdbc:oracle:thin:@10.129.181.131:1521/XCOMHM",
+		"xcom_preprod" : "jdbc:oracle:thin:@10.129.181.74:1521/XCOM_DSV",
+		"gsim_dev" : "jdbc:oracle:thin:@10.129.178.133:1521/gsimdsv",
+		"gsim_homol" : "jdbc:oracle:thin:@10.129.179.20:1521/GSIMQA",
+		"sigan_dev" : "jdbc:oracle:thin:@10.129.229.114:1521/SIGANDEV",
+		"sigan_homolog" : "jdbc:oracle:thin:@10.129.229.58:1521/SIGANQA1"		
+	},
+	"git_repositories" : {
+		"sigan-banco-git": "10.129.178.173:9080/oss/sigan-banco-git",
+		"gsim-banco-git" : "10.129.178.173:9080/oss/gsim-banco-git"
+	}
+}

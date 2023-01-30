@@ -20,7 +20,6 @@
       <root url="jar://$USER_HOME$/.sdkman/candidates/groovy/4.0.8/lib/mxparser-1.2.2.jar!/" />
       <root url="jar://$USER_HOME$/.sdkman/candidates/groovy/4.0.8/lib/groovy-yaml-4.0.8.jar!/" />
       <root url="jar://$USER_HOME$/.sdkman/candidates/groovy/4.0.8/lib/groovy-macro-4.0.8.jar!/" />
-      <root url="jar://$USER_HOME$/.sdkman/candidates/groovy/4.0.8/lib/groovy-cli-commons-4.0.8.jar!/" />
       <root url="jar://$USER_HOME$/.sdkman/candidates/groovy/4.0.8/lib/xstream-1.4.20.jar!/" />
       <root url="jar://$USER_HOME$/.sdkman/candidates/groovy/4.0.8/lib/groovy-ginq-4.0.8.jar!/" />
       <root url="jar://$USER_HOME$/.sdkman/candidates/groovy/4.0.8/lib/groovy-nio-4.0.8.jar!/" />
@@ -51,7 +50,6 @@
       <root url="jar://$USER_HOME$/.sdkman/candidates/groovy/4.0.8/lib/groovy-testng-4.0.8.jar!/" />
       <root url="jar://$USER_HOME$/.sdkman/candidates/groovy/4.0.8/lib/org.abego.treelayout.core-1.0.3.jar!/" />
       <root url="jar://$USER_HOME$/.sdkman/candidates/groovy/4.0.8/lib/junit-jupiter-engine-5.9.2.jar!/" />
-      <root url="jar://$USER_HOME$/.sdkman/candidates/groovy/4.0.8/lib/groovy-cli-picocli-4.0.8.jar!/" />
       <root url="jar://$USER_HOME$/.sdkman/candidates/groovy/4.0.8/lib/gpars-1.2.1.jar!/" />
       <root url="jar://$USER_HOME$/.sdkman/candidates/groovy/4.0.8/lib/ant-antlr-1.10.13.jar!/" />
       <root url="jar://$USER_HOME$/.sdkman/candidates/groovy/4.0.8/lib/jackson-dataformat-toml-2.14.1.jar!/" />

@@ -5,7 +5,6 @@
         @Grab(group = 'org.codehaus.groovy', module = 'groovy-cli-commons', version = '3.0.14')
 )
 
-
 import groovy.cli.commons.CliBuilder
 import groovy.json.JsonSlurper
 
@@ -15,10 +14,10 @@ class Dboss {
 
         def options = new Options().getOptions(args)
         def baseGitDirectory = System.getenv("PWD") + "/Git/"
-        def propertiesFile = System.getenv("PWD") + "/src" + "/dboss_properties.json" //TODO: Remove src, only for IntelliJ
+        def propertiesFile = System.getenv("PWD") + "/dboss_properties.json"
         def ret = new WorkFlow().execute(options, baseGitDirectory, propertiesFile)
 
-        if(options.get("verbose")) {
+        if(options.get("verbose") == "y") {
             println(CodeMessage.geMessageByValue(ret))
         }
 
@@ -31,7 +30,7 @@ class WorkFlow {
 
     static int execute(HashMap options, String baseGitDirectory, String propertiesFile) {
 
-        def verbose = options.get("verbose") == "v"
+        def verbose = options.get("verbose") == "y"
 
         if(verbose) {
             println("STEP 1 - " + CodeMessage.VALIDATING_GIT_DIRECTORY.message() + ": " + baseGitDirectory)
@@ -43,6 +42,24 @@ class WorkFlow {
         }
 
         def dataBaseConnectionsUrl = DataBase.getDataBaseConnectionsURL(propertiesFile)
+
+        if(verbose) {
+            dataBaseConnectionsUrl.each { key, value ->
+                println "$key : $value"
+            }
+        }
+
+        if(verbose) {
+            println("STEP 2.1 - " + CodeMessage.GETTING_GIT_REPOSITORIES.message() + ": " + propertiesFile)
+        }
+
+        def gitRepositories = Git.getGitRepositories(propertiesFile)
+
+        if(verbose) {
+            gitRepositories.each { key, value ->
+                println "$key : $value"
+            }
+        }
 
         //TODO: Implment other executions
 
@@ -85,8 +102,9 @@ enum CodeMessage {
     CREATING_DIRECTORY(3, 'Creating directory.'),
     DIRECTORY_CREATED(4, 'Directory created.'),
     CREATING_DIRECTORY_FAILED(5, 'Creating directory failed.'),
-    VALIDATING_GIT_DIRECTORY(6, 'Validating if Git directory exist in current directory.'),
-    GETTING_DATABASE_CONNECTIONS_URL(6, 'Getting database connections url.')
+    VALIDATING_GIT_DIRECTORY(6, 'Validating if Git directory exist.'),
+    GETTING_DATABASE_CONNECTIONS_URL(6, 'Getting database connections url.'),
+    GETTING_GIT_REPOSITORIES(7, 'Getting git repositories.')
 
     CodeMessage(int value, String message) {
         this.value = value
@@ -115,7 +133,7 @@ class Options {
 
     def getOptions(String[] args) {
 
-        def cli = new CliBuilder(usage: 'groovy Dboss.groovy -u= -p= -b= -e= -d= -s= -o= -r= -i= [-v]')
+        def cli = new CliBuilder(usage: 'dboss.groovy -u= -p= -b= -e= -d= -s= -o= -r= -i= [-v]')
 
         cli.with {
             u longOpt: 'gitUser', args: 1, argName: 'gitUser', required: true, 'Git user name Ex. 80830170'
@@ -165,16 +183,11 @@ class Util {
         return file.mkdir()
     }
 
-    static def readyJsonValues(String jsonFileName, String objectName) {
+    static def getJsonObject(String jsonFileName, String objectName) {
 
-        def jsonSlurper = new JsonSlurper()
-        def file = new File(jsonFileName)
-        def data = jsonSlurper.parse(file)
+        def jsonObject = new JsonSlurper().parse(new File(jsonFileName))[objectName]
 
-        println(data)
-
-        return data
-
+        return jsonObject
     }
 
 }
@@ -185,10 +198,27 @@ class DataBase {
 
         def objectName = "database_connections_url"
 
-        def dataBaseConnectionsUrl = Util.readyJsonValues(propertiesFile, objectName)
+        //TODO: Validate if file exist
 
-        return null
+        def dataBaseConnectionsUrl = Util.getJsonObject(propertiesFile, objectName)
+
+        return dataBaseConnectionsUrl
     }
 
+
+}
+
+class Git {
+
+    def static getGitRepositories(String propertiesFile) {
+
+        def objectName = "git_repositories"
+
+        //TODO: Validate if file exist
+
+        def gitRepositories = Util.getJsonObject(propertiesFile, objectName)
+
+        return gitRepositories
+    }
 
 }
