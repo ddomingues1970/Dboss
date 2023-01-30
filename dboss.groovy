@@ -5,17 +5,20 @@
         @Grab(group = 'org.codehaus.groovy', module = 'groovy-cli-commons', version = '3.0.14')
 )
 
+
 import groovy.cli.commons.CliBuilder
+import groovy.json.JsonSlurper
 
 class Dboss {
 
     static void main(String[] args) {
 
-        HashMap options = new Options().getOptions(args)
+        def options = new Options().getOptions(args)
+        def baseGitDirectory = System.getenv("PWD") + "/Git/"
+        def propertiesFile = System.getenv("PWD") + "/src" + "/dboss_properties.json" //TODO: Remove src, only for IntelliJ
+        def ret = new WorkFlow().execute(options, baseGitDirectory, propertiesFile)
 
-        def ret = new WorkFlow().execute(options)
-
-        if(options.get("verbose") == "y") {
+        if(options.get("verbose")) {
             println(CodeMessage.geMessageByValue(ret))
         }
 
@@ -26,17 +29,20 @@ class Dboss {
 
 class WorkFlow {
 
-    static int execute(HashMap options) {
+    static int execute(HashMap options, String baseGitDirectory, String propertiesFile) {
 
-        def BASE_GIT_DIRECTORY = "/Git/"
-        def current_directory = System.getenv("PWD") + BASE_GIT_DIRECTORY
-        def verbose = options.get("verbose") == "y"
+        def verbose = options.get("verbose") == "v"
 
         if(verbose) {
-            println("STEP 1 - " + CodeMessage.VALIDATING_GIT_DIRECTORY.message() + ":" + current_directory)
+            println("STEP 1 - " + CodeMessage.VALIDATING_GIT_DIRECTORY.message() + ": " + baseGitDirectory)
+        }
+        def ret = Validation.validateGitDirectory(baseGitDirectory)
+
+        if(verbose) {
+            println("STEP 2 - " + CodeMessage.GETTING_DATABASE_CONNECTIONS_URL.message() + ": " + propertiesFile)
         }
 
-        def ret = Validation.validateGitDirectory(current_directory)
+        def dataBaseConnectionsUrl = DataBase.getDataBaseConnectionsURL(propertiesFile)
 
         //TODO: Implment other executions
 
@@ -79,21 +85,22 @@ enum CodeMessage {
     CREATING_DIRECTORY(3, 'Creating directory.'),
     DIRECTORY_CREATED(4, 'Directory created.'),
     CREATING_DIRECTORY_FAILED(5, 'Creating directory failed.'),
-    VALIDATING_GIT_DIRECTORY(6, 'Validating if Git directory exist in current directory.')
+    VALIDATING_GIT_DIRECTORY(6, 'Validating if Git directory exist in current directory.'),
+    GETTING_DATABASE_CONNECTIONS_URL(6, 'Getting database connections url.')
 
     CodeMessage(int value, String message) {
         this.value = value
         this.message = message
     }
 
-    private final int value
-    private final String message
+    private final def value
+    private final def message
 
-    int value() { return value }
+    def value() { return value }
 
-    String message() { return message }
+    def message() { return message }
 
-    static String geMessageByValue(int value) {
+    static def geMessageByValue(int value) {
         for (CodeMessage e : values()) {
             if (e.value == value) {
                 return e.message()
@@ -106,7 +113,7 @@ enum CodeMessage {
 
 class Options {
 
-    HashMap getOptions(String[] args) {
+    def getOptions(String[] args) {
 
         def cli = new CliBuilder(usage: 'groovy Dboss.groovy -u= -p= -b= -e= -d= -s= -o= -r= -i= [-v]')
 
@@ -148,14 +155,40 @@ class Options {
 
 class Util {
 
-    static boolean isDirectory(String directory) {
+    static def isDirectory(String directory) {
         def file = new File(directory)
         return file.isDirectory()
     }
 
-    static boolean createDirectory(String directory) {
+    static def createDirectory(String directory) {
         def file = new File(directory)
         return file.mkdir()
     }
+
+    static def readyJsonValues(String jsonFileName, String objectName) {
+
+        def jsonSlurper = new JsonSlurper()
+        def file = new File(jsonFileName)
+        def data = jsonSlurper.parse(file)
+
+        println(data)
+
+        return data
+
+    }
+
+}
+
+class DataBase {
+
+    def static getDataBaseConnectionsURL(String propertiesFile) {
+
+        def objectName = "database_connections_url"
+
+        def dataBaseConnectionsUrl = Util.readyJsonValues(propertiesFile, objectName)
+
+        return null
+    }
+
 
 }
