@@ -1,9 +1,11 @@
 #!/usr/bin/env groovy
 
 //https://mvnrepository.com/artifact/org.codehaus.groovy/groovy-cli-commons
-@Grapes(
-        @Grab(group = 'org.codehaus.groovy', module = 'groovy-cli-commons', version = '3.0.14')
-)
+@Grapes([
+    @Grab(group='org.codehaus.groovy', module = 'groovy-cli-commons', version = '3.0.14'),
+    @Grab(group='org.eclipse.jgit', module='org.eclipse.jgit', version='6.4.0.202211300538-r')
+])
+
 
 import groovy.cli.commons.CliBuilder
 import groovy.json.JsonSlurper
@@ -14,10 +16,11 @@ class Dboss {
 
         def options = new Options().getOptions(args)
         def baseGitDirectory = System.getenv("PWD") + "/Git/"
-        def propertiesFile = System.getenv("PWD") + "/dboss_properties.json"
+        def propertiesFile = System.getenv("PWD") + "/dboss.properties"
         def ret = new WorkFlow().execute(options, baseGitDirectory, propertiesFile)
 
         if(options.get("verbose") == "y") {
+            //TODO: Use log.info
             println(CodeMessage.geMessageByValue(ret))
         }
 
@@ -60,6 +63,14 @@ class WorkFlow {
                 println "$key : $value"
             }
         }
+
+        def repository = "https://github.com/ddomingues1970/Dboss.git"
+
+        if(verbose) {
+            println("STEP 3 - " + CodeMessage.CLONING_GIT_REPOSITORIES.message() + ": " + propertiesFile)
+        }
+
+        //ret = Git.cloneGitRepository(baseGitDirectory, repository, "v1.0.0-Beta")
 
         //TODO: Implment other executions
 
@@ -104,7 +115,8 @@ enum CodeMessage {
     CREATING_DIRECTORY_FAILED(5, 'Creating directory failed.'),
     VALIDATING_GIT_DIRECTORY(6, 'Validating if Git directory exist.'),
     GETTING_DATABASE_CONNECTIONS_URL(6, 'Getting database connections url.'),
-    GETTING_GIT_REPOSITORIES(7, 'Getting git repositories.')
+    GETTING_GIT_REPOSITORIES(7, 'Getting git repositories.'),
+    CLONING_GIT_REPOSITORIES(8, 'Cloning git repositories.')
 
     CodeMessage(int value, String message) {
         this.value = value
@@ -219,6 +231,18 @@ class Git {
         def gitRepositories = Util.getJsonObject(propertiesFile, objectName)
 
         return gitRepositories
+    }
+
+    def static cloneGitRepository(String gitBaseDirectory, String repository, String branch) {
+
+        def gitDirectory = new File(gitBaseDirectory)
+
+        def git = org.eclipse.jgit.api.Git.cloneRepository().setGitDir(gitDirectory).setBranch(branch).setURI(repository).call()
+
+        println("Cloned repository: " + git.getRepository().getDirectory())
+
+        return CodeMessage.SUCCESS.value()
+
     }
 
 }
