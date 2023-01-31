@@ -1,4 +1,7 @@
 {
+	"config" : {
+		"base_git_directory" : "/home/ddomingues/Vivo/Liquibase/Git"
+	},
 	"database_connections_url" : {
 		"xcom_dev": "jdbc:oracle:thin:@10.129.181.131:1521/XCOMHM",
 		"xcom_preprod" : "jdbc:oracle:thin:@10.129.181.74:1521/XCOM_DSV",

@@ -23,6 +23,7 @@
 
 # IntelliJ configuration file
 /.ide/
+*.iml
 
 #Git working directory
 

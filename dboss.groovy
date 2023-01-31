@@ -6,7 +6,6 @@
     @Grab(group='org.eclipse.jgit', module='org.eclipse.jgit', version='6.4.0.202211300538-r')
 ])
 
-
 import groovy.cli.commons.CliBuilder
 import groovy.json.JsonSlurper
 
@@ -15,30 +14,30 @@ class Dboss {
     static void main(String[] args) {
 
         def options = new Options().getOptions(args)
-        def baseGitDirectory = System.getenv("PWD") + "/Git/"
-        def propertiesFile = System.getenv("PWD") + "/dboss.properties"
-        def ret = new WorkFlow().execute(options, baseGitDirectory, propertiesFile)
+
+        def ret = new WorkFlow().execute(options)
 
         if(options.get("verbose") == "y") {
             //TODO: Use log.info
             println(CodeMessage.geMessageByValue(ret))
         }
 
-        System.out.println(ret)
-
     }
 }
 
 class WorkFlow {
 
-    static int execute(HashMap options, String baseGitDirectory, String propertiesFile) {
+    static int execute(HashMap options) {
+
+        def propertiesFile = System.getenv("PWD") + "/dboss.properties.json"
+        def baseGitDirectory = Util.getJsonObject(propertiesFile, "config").getAt("base_git_directory")
 
         def verbose = options.get("verbose") == "y"
 
         if(verbose) {
             println("STEP 1 - " + CodeMessage.VALIDATING_GIT_DIRECTORY.message() + ": " + baseGitDirectory)
         }
-        def ret = Validation.validateGitDirectory(baseGitDirectory)
+        def ret = Validation.validateGitDirectory(baseGitDirectory, verbose)
 
         if(verbose) {
             println("STEP 2 - " + CodeMessage.GETTING_DATABASE_CONNECTIONS_URL.message() + ": " + propertiesFile)
@@ -82,17 +81,21 @@ class WorkFlow {
 
 class Validation {
 
-    static int validateGitDirectory(String directory) {
+    static int validateGitDirectory(String directory, boolean verbose) {
 
         if (Util.isDirectory(directory)) {
             return CodeMessage.SUCCESS.value()
         }
 
-        println(CodeMessage.GIT_DIRECTORY_DOES_NOT_EXIST.message() + ":" + directory)
-        println(CodeMessage.CREATING_DIRECTORY.message() + ":" + directory)
+        if(verbose) {
+            println(CodeMessage.GIT_DIRECTORY_DOES_NOT_EXIST.message() + ":" + directory)
+            println(CodeMessage.CREATING_DIRECTORY.message() + ":" + directory)
+        }
 
         if (Util.createDirectory(directory)) {
-            println(CodeMessage.DIRECTORY_CREATED.message() + ":" + directory)
+            if(verbose) {
+                println(CodeMessage.DIRECTORY_CREATED.message() + ":" + directory)
+            }
             return CodeMessage.SUCCESS.value()
         }
 
@@ -116,7 +119,8 @@ enum CodeMessage {
     VALIDATING_GIT_DIRECTORY(6, 'Validating if Git directory exist.'),
     GETTING_DATABASE_CONNECTIONS_URL(6, 'Getting database connections url.'),
     GETTING_GIT_REPOSITORIES(7, 'Getting git repositories.'),
-    CLONING_GIT_REPOSITORIES(8, 'Cloning git repositories.')
+    CLONING_GIT_REPOSITORIES(8, 'Cloning git repositories.'),
+    MISSING_REQUIRED_OPTIONS(9, 'Missing required options.')
 
     CodeMessage(int value, String message) {
         this.value = value
@@ -148,33 +152,44 @@ class Options {
         def cli = new CliBuilder(usage: 'dboss.groovy -u= -p= -b= -e= -d= -s= -o= -r= -i= [-v]')
 
         cli.with {
-            u longOpt: 'gitUser', args: 1, argName: 'gitUser', required: true, 'Git user name Ex. 80830170'
-            p longOpt: 'gitPassword', args: 1, argName: 'gitPassword', required: true, 'Git password'
-            b longOpt: 'gitBranch', args: 1, argName: 'gitBranch', required: true, 'Git branch. Ex. 2022.08.26.E2'
-            e longOpt: 'dataBaseEnv', args: 1, argName: 'dataBaseEnv', required: true, 'Database env. Ex. sigan_dev'
-            d longOpt: 'dataBaseUser', args: 1, argName: 'dataBaseUser', required: true, 'Database user. Ex. sigan_cn'
-            s longOpt: 'dataBasePassword', args: 1, argName: 'dataBasePassword', required: true, 'Database password'
+            g longOpt: 'git_repository', args: 1, argName: 'git_repository', required: true, 'Git repository. Ex. gsim-banco-git'
+            u longOpt: 'git_user', args: 1, argName: 'git_user', required: true, 'Git user name Ex. 80830170'
+            p longOpt: 'git_password', args: 1, argName: 'git_password', required: true, 'Git password'
+            b longOpt: 'git_branch', args: 1, argName: 'git_branch', required: true, 'Git branch. Ex. 2022.08.26.E2'
+            e longOpt: 'database_env', args: 1, argName: 'database_env', required: true, 'Database env. Ex. sigan_dev'
+            d longOpt: 'database_user', args: 1, argName: 'database_user', required: true, 'Database user. Ex. sigan_cn'
+            s longOpt: 'database_password', args: 1, argName: 'database_password', required: true, 'Database password'
             o longOpt: 'operation', args: 1, argName: 'operation', required: true, 'Operation. execution or rollback'
             r longOpt: 'release', args: 1, argName: 'release', required: true, 'Release. YYYYMMDDEX (YEARMONTHDAYESTEIRAID) Ex. 2023'
-            i longOpt: 'projectId', args: 1, argName: 'projectId', required: true, 'Project Id. Ex. PTI1808'
+            i longOpt: 'project_id', args: 1, argName: 'project_id', required: true, 'Project Id. Ex. PTI1808'
             v longOpt: 'verbose', argName: 'verbose', required: false, 'Optional - Verbose flag Ex. -v)'
         }
 
         def optionMap = [:]
         def options = cli.parse(args)
-        if (!options) {
-            return optionMap
-        }
 
-        optionMap["gitUser"] = options.u ?: options.gitUser
-        optionMap["gitPassword"] = options.p ?: options.gitPassword
-        optionMap["gitBranch"] = options.b ?: options.gitBranch
-        optionMap["dataBaseEnv"] = options.e ?: options.dataBaseEnv
-        optionMap["dataBaseUser"] = options.d ?: options.dataBaseUser
-        optionMap["dataBasePassword"] = options.s ?: options.dataBasePassword
+        if (!options) {
+            print(CodeMessage.MISSING_REQUIRED_OPTIONS.message())
+            System.exit(CodeMessage.MISSING_REQUIRED_OPTIONS.value())
+        }
+        /*
+        def REQUIRED_ARGUMENT_COUNT = 9
+            if (options?.arguments()?.size() < REQUIRED_ARGUMENT_COUNT && options?.arguments()?.size() > 1) {
+            print(CodeMessage.MISSING_REQUIRED_OPTIONS.message() + "Arguments count: " + options?.arguments()?.size())
+            System.exit(CodeMessage.MISSING_REQUIRED_OPTIONS.value())
+        }
+        */
+
+        optionMap["git_repository"] = options.g ?: options.git_repository
+        optionMap["git_user"] = options.u ?: options.git_user
+        optionMap["git_password"] = options.p ?: options.git_password
+        optionMap["git_branch"] = options.b ?: options.git_branch
+        optionMap["database_env"] = options.e ?: options.database_env
+        optionMap["database_user"] = options.d ?: options.dataBaseUser
+        optionMap["database_password"] = options.s ?: options.database_password
         optionMap["operation"] = options.o ?: options.operation
         optionMap["release"] = options.r ?: options.release
-        optionMap["projectId"] = options.i ?: options.projectId
+        optionMap["project_id"] = options.i ?: options.project_id
         optionMap["verbose"] = options.v ? "y" : "n"
 
         return optionMap
