@@ -22,7 +22,7 @@
 /out/
 
 # IntelliJ configuration file
-/.ide/
+.ide/
 *.iml
 
 #Git working directory

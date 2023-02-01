@@ -1,6 +1,6 @@
 {
 	"config" : {
-		"base_git_directory" : "/home/ddomingues/Vivo/Liquibase/Git"
+		"local_git_directory" : "/home/ddomingues/Vivo/Liquibase/Git"
 	},
 	"database_connections_url" : {
 		"xcom_dev": "jdbc:oracle:thin:@10.129.181.131:1521/XCOMHM",
@@ -12,6 +12,7 @@
 	},
 	"git_repositories" : {
 		"sigan-banco-git": "10.129.178.173:9080/oss/sigan-banco-git",
-		"gsim-banco-git" : "10.129.178.173:9080/oss/gsim-banco-git"
+		"gsim-banco-git" : "10.129.178.173:9080/oss/gsim-banco-git",
+		"src-sigitm-3.git" : "gitlab.redecorp.br/sigitm-3/src/src-sigitm-3.git"
 	}
 }

@@ -2,12 +2,18 @@
 
 //https://mvnrepository.com/artifact/org.codehaus.groovy/groovy-cli-commons
 @Grapes([
-    @Grab(group='org.codehaus.groovy', module = 'groovy-cli-commons', version = '3.0.14'),
-    @Grab(group='org.eclipse.jgit', module='org.eclipse.jgit', version='6.4.0.202211300538-r')
+        @Grab(group = 'org.codehaus.groovy', module = 'groovy-cli-commons', version = '3.0.14'),
+        @Grab(group = 'org.eclipse.jgit', module = 'org.eclipse.jgit.ssh.jsch', version = '6.4.0.202211300538-r')
 ])
+
 
 import groovy.cli.commons.CliBuilder
 import groovy.json.JsonSlurper
+
+import org.eclipse.jgit.api.Git
+import org.eclipse.jgit.transport.CredentialsProvider
+import org.eclipse.jgit.transport.UsernamePasswordCredentialsProvider
+
 
 class Dboss {
 
@@ -17,7 +23,7 @@ class Dboss {
 
         def ret = new WorkFlow().execute(options)
 
-        if(options.get("verbose") == "y") {
+        if (options.get("verbose") == "y") {
             //TODO: Use log.info
             println(CodeMessage.geMessageByValue(ret))
         }
@@ -30,46 +36,48 @@ class WorkFlow {
     static int execute(HashMap options) {
 
         def propertiesFile = System.getenv("PWD") + "/dboss.properties.json"
-        def baseGitDirectory = Util.getJsonObject(propertiesFile, "config").getAt("base_git_directory")
+        def localGitDirectory = Util.getJsonObject(propertiesFile, "config")["local_git_directory"]
 
         def verbose = options.get("verbose") == "y"
 
-        if(verbose) {
-            println("STEP 1 - " + CodeMessage.VALIDATING_GIT_DIRECTORY.message() + ": " + baseGitDirectory)
+        if (verbose) {
+            println("STEP 1 - " + CodeMessage.VALIDATING_GIT_DIRECTORY.message() + ": " + localGitDirectory)
         }
-        def ret = Validation.validateGitDirectory(baseGitDirectory, verbose)
+        def ret = Validation.validateGitDirectory(localGitDirectory, verbose)
 
-        if(verbose) {
+        if (verbose) {
             println("STEP 2 - " + CodeMessage.GETTING_DATABASE_CONNECTIONS_URL.message() + ": " + propertiesFile)
         }
 
         def dataBaseConnectionsUrl = DataBase.getDataBaseConnectionsURL(propertiesFile)
 
-        if(verbose) {
+        if (verbose) {
             dataBaseConnectionsUrl.each { key, value ->
                 println "$key : $value"
             }
         }
 
-        if(verbose) {
+        if (verbose) {
             println("STEP 2.1 - " + CodeMessage.GETTING_GIT_REPOSITORIES.message() + ": " + propertiesFile)
         }
 
         def gitRepositories = Git.getGitRepositories(propertiesFile)
 
-        if(verbose) {
+        if (verbose) {
             gitRepositories.each { key, value ->
                 println "$key : $value"
             }
         }
 
-        def repository = "https://github.com/ddomingues1970/Dboss.git"
+        def repository = Util.getJsonObject(propertiesFile, "git_repositories")[options.get("git_repository")]
+        def gitUser = options.get("git_user")
+        def gitPassword = options.get("git_password")
 
-        if(verbose) {
-            println("STEP 3 - " + CodeMessage.CLONING_GIT_REPOSITORIES.message() + ": " + propertiesFile)
+        if (verbose) {
+            println("STEP 3 - " + CodeMessage.CLONING_GIT_REPOSITORIES.message() + ": " + repository)
         }
 
-        //ret = Git.cloneGitRepository(baseGitDirectory, repository, "v1.0.0-Beta")
+        ret = Git.cloneGitRepository(localGitDirectory, repository, gitUser, gitPassword)
 
         //TODO: Implment other executions
 
@@ -87,13 +95,13 @@ class Validation {
             return CodeMessage.SUCCESS.value()
         }
 
-        if(verbose) {
+        if (verbose) {
             println(CodeMessage.GIT_DIRECTORY_DOES_NOT_EXIST.message() + ":" + directory)
             println(CodeMessage.CREATING_DIRECTORY.message() + ":" + directory)
         }
 
         if (Util.createDirectory(directory)) {
-            if(verbose) {
+            if (verbose) {
                 println(CodeMessage.DIRECTORY_CREATED.message() + ":" + directory)
             }
             return CodeMessage.SUCCESS.value()
@@ -248,13 +256,42 @@ class Git {
         return gitRepositories
     }
 
-    def static cloneGitRepository(String gitBaseDirectory, String repository, String branch) {
+    def static cloneGitRepository1(String gitBaseDirectory, String repository, String branch) {
 
-        def gitDirectory = new File(gitBaseDirectory)
+        // Create the CredentialsProvider with the given username and password
+        def credentialsProvider = new UsernamePasswordCredentialsProvider("80830170", "senha")
 
-        def git = org.eclipse.jgit.api.Git.cloneRepository().setGitDir(gitDirectory).setBranch(branch).setURI(repository).call()
+        // Clone the repository using the Git class
+        def git = org.eclipse.jgit.api.Git.cloneRepository()
+                .setDirectory(new File(gitBaseDirectory))
+                .setCredentialsProvider(credentialsProvider)
+                .setURI(repository)
+                .call()
 
         println("Cloned repository: " + git.getRepository().getDirectory())
+
+        return CodeMessage.SUCCESS.value()
+
+    }
+
+    def static cloneGitRepository(String localGitDirectory, String repository, String gitUser, String gitPassword) {
+
+        def encodedUser = URLEncoder.encode(gitUser, "UTF-8")
+        def encodedPassword = URLEncoder.encode(gitPassword, "UTF-8")
+
+        def uri = "https://" + encodedUser + ":" + encodedPassword + "@" + repository
+        def processBuilder = new ProcessBuilder("git", "clone", uri.toString())
+        processBuilder.directory(new File(localGitDirectory))
+        processBuilder.redirectErrorStream(true)
+        def process = processBuilder.start()
+
+        def output = new StringBuilder()
+        process.inputStream.eachLine { line ->
+            output.append(line).append("\n")
+        }
+
+        process.waitFor()
+        println(output)
 
         return CodeMessage.SUCCESS.value()
 
