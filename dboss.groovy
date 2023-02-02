@@ -10,6 +10,7 @@
 import groovy.cli.commons.CliBuilder
 import groovy.json.JsonSlurper
 import org.eclipse.jgit.api.ListBranchCommand
+import org.eclipse.jgit.api.CheckoutCommand
 import org.eclipse.jgit.api.errors.GitAPIException
 
 
@@ -17,8 +18,21 @@ class Dboss {
 
     static void main(String[] args) {
 
+        def verbose = false
+
+        Arrays.asList(args).find( option -> {
+            if(option == "-v") {
+                verbose = true
+            }
+        })
+
         def options = new Options().getOptions(args)
-        def propertiesFile = this.getLocation().toString().replace("file:","").replace("groovy", "properties.json")
+
+        if (verbose) {
+            println("STEP 1 - " + CodeMessage.VALIDATING_ARGUMENT_OPTIONS.message())
+        }
+
+        def propertiesFile = this.getLocation().toString().replace("file:", "").replace("groovy", "properties.json")
         Validation.validatePropertiesFile(propertiesFile)
 
         def ret = new WorkFlow().execute(options, propertiesFile)
@@ -39,18 +53,18 @@ class WorkFlow {
         def verbose = options.get("verbose") == "y"
 
         if (verbose) {
-            println("STEP 1 - " + CodeMessage.VALIDATING_GIT_DIRECTORY.message() + ": " + localGitDirectory)
+            println("STEP 2 - " + CodeMessage.VALIDATING_GIT_DIRECTORY.message() + ": " + localGitDirectory)
         }
         def ret = Validation.validateGitDirectory(localGitDirectory, verbose)
 
         if (verbose) {
-            println("STEP 2 - " + CodeMessage.GETTING_DATABASE_CONNECTIONS_URL.message() + ": " + propertiesFile)
+            println("STEP 3 - " + CodeMessage.GETTING_DATABASE_CONNECTIONS_URL.message() + ": " + propertiesFile)
         }
 
         def dataBaseConnectionsUrl = DataBase.getDataBaseConnectionsURL(propertiesFile)
 
         if (verbose) {
-            println("STEP 2.1 - " + CodeMessage.GETTING_GIT_REPOSITORIES.message() + ": " + propertiesFile)
+            println("STEP 3.1 - " + CodeMessage.GETTING_GIT_REPOSITORIES.message() + ": " + propertiesFile)
         }
 
         def gitRepository = Util.getJsonObject(propertiesFile, "git_repositories")[options.get("git_repository")]
@@ -58,7 +72,7 @@ class WorkFlow {
         def gitPassword = options.get("git_password")
 
         if (verbose) {
-            println("STEP 3 - " + CodeMessage.CLONING_GIT_REPOSITORY.message() + ": " + gitRepository)
+            println("STEP 4 - " + CodeMessage.CLONING_GIT_REPOSITORY.message() + ": " + gitRepository)
         }
 
         def localGitRepoDir = localGitDirectory + "/" + options.get("git_repository").toString().replace(".git", "")
@@ -70,8 +84,12 @@ class WorkFlow {
         }
 
         if (ret == CodeMessage.GIT_DIRECTORY_EXIST.value()) {
+
+            //Shoud be in master branch to execute pull command
+            Git.gitCheckoutBranch(localGitRepoDir, "master")
+
             if (verbose) {
-                println("STEP 3.1 - " + CodeMessage.PULLING_GIT_REPOSITORY.message() + ": " + gitRepository)
+                println("STEP 4.1 - " + CodeMessage.PULLING_GIT_REPOSITORY.message() + ": " + gitRepository)
             }
 
             ret = Git.pullRepository(localGitRepoDir)
@@ -81,9 +99,22 @@ class WorkFlow {
             }
         }
 
+        if (verbose) {
+            println("STEP 5 - " + CodeMessage.SEARCH_FOR_FILES_THAT_WILL_BE_EXECUTED.message() + ": " + gitRepository)
+        }
+
         def gitBranch = options.get("git_branch")
 
-        ret = Validation.validateIfBranchExist(localGitRepoDir, gitBranch)
+        if (verbose) {
+            println("STEP 5.1 - " + CodeMessage.VALIDATE_IF_BRANCH_EXIST.message() + ": " + gitBranch)
+        }
+        def fullGitBranchName = Validation.validateIfBranchExist(localGitRepoDir, gitBranch)
+
+        if (verbose) {
+            println("STEP 5.2 - " + CodeMessage.CHECKOUT_BRANCH.message() + ": " + gitBranch)
+        }
+
+        ret = Git.gitCheckoutBranch(localGitRepoDir, fullGitBranchName)
 
         return ret
 
@@ -95,7 +126,7 @@ class Validation {
 
     static int validatePropertiesFile(String propertiesFile) {
 
-        if(!Util.isFile(propertiesFile)) {
+        if (!Util.isFile(propertiesFile)) {
             println(CodeMessage.PROPERTIES_FILE_DOES_NOT_EXIST.message() + ": " + propertiesFile)
             System.exit(CodeMessage.PROPERTIES_FILE_DOES_NOT_EXIST.value())
         }
@@ -127,20 +158,23 @@ class Validation {
 
     }
 
-    static int validateIfBranchExist(String localGitRepoDir, String gitBranch) {
+    static String validateIfBranchExist(String localGitRepoDir, String gitBranch) {
 
-        def branchList = Git.getGitBranchs(localGitRepoDir, gitBranch)
+        def branchList = Git.getGitBranches(localGitRepoDir, gitBranch)
+        String fullGitBranchName
 
-       def foundBranch = branchList[0].find( branch -> {
-            branch.name.contains(gitBranch)
+        def foundBranch = branchList[0].find(branch -> {
+            if (branch.name.contains(gitBranch)) {
+                fullGitBranchName = branch.name
+            }
         })
 
-        if(!foundBranch) {
+        if (!foundBranch) {
             println(CodeMessage.BRANCH_DOES_NOT_EXIST.message() + ": " + gitBranch)
             System.exit(CodeMessage.BRANCH_DOES_NOT_EXIST.value())
         }
 
-        return CodeMessage.SUCCESS.value()
+        return fullGitBranchName.replace("refs/", "")
 
     }
 }
@@ -165,7 +199,12 @@ enum CodeMessage {
     PULL_WAS_SUCCESSFUL(14, 'The pull was successful!'),
     PULL_WAS_NOT_SUCCESSFUL(15, 'The pull was not successful.'),
     PROPERTIES_FILE_DOES_NOT_EXIST(16, 'Properties file does not exist.'),
-    BRANCH_DOES_NOT_EXIST(17, 'Branch does not exist.')
+    BRANCH_DOES_NOT_EXIST(17, 'Branch does not exist.'),
+    CHECKOUT_BRANCH_FAILED(18, 'Checkout branch failed.'),
+    SEARCH_FOR_FILES_THAT_WILL_BE_EXECUTED(19, 'Search for files that will be executed.'),
+    VALIDATE_IF_BRANCH_EXIST(20, 'Validate if branch exist.'),
+    CHECKOUT_BRANCH(21, 'Checkout branch.'),
+    VALIDATING_ARGUMENT_OPTIONS(22, 'Validating input argument options')
 
     CodeMessage(int value, String message) {
         this.value = value
@@ -278,11 +317,20 @@ class DataBase {
 
 class Git {
 
-    def static getGitRepositories(String propertiesFile) {
+    def static gitCheckoutBranch(String localGitRepoDir, String fullGitBranchName) {
 
-        def gitRepositories = Util.getJsonObject(propertiesFile, "git_repositories")
+        def git = org.eclipse.jgit.api.Git.open(new File(localGitRepoDir))
 
-        return gitRepositories
+        try {
+            git.checkout().setCreateBranch(false).setName(fullGitBranchName).call()
+        } catch (GitAPIException e) {
+            println(CodeMessage.CHECKOUT_BRANCH_FAILED.message() + ": " + fullGitBranchName)
+        } finally {
+            git.close()
+        }
+
+        return CodeMessage.SUCCESS.value()
+
     }
 
     def static cloneGitRepository(String localGitDirectory, String gitRepository, String gitUser, String gitPassword, String localGitRepoDir) {
@@ -341,24 +389,14 @@ class Git {
 
     }
 
-    def static getGitBranchs(String localGitRepoDir, String branchName) throws GitAPIException {
+    def static getGitBranches(String localGitRepoDir, String branchName) throws GitAPIException {
         def git = org.eclipse.jgit.api.Git.open(new File(localGitRepoDir))
 
         def branchListCmd = git.branchList()
         def branchList = branchListCmd.setListMode(ListBranchCommand.ListMode.ALL).call()
         git.close()
 
-        def remoteBranches = branchList.findAll { branch ->
-            branch.name.startsWith("refs/remotes/")
-        }.collect { branch ->
-            branch.name.substring("refs/remotes/".length())
-        }
-
-        remoteBranches.each { branch ->
-            println(branch)
-        }
-
-       return Arrays.asList(branchList)
+        return Arrays.asList(branchList)
 
     }
 
