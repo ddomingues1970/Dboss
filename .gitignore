@@ -23,8 +23,9 @@
 
 # IntelliJ configuration file
 .ide/
+.ide/.gitignore
 *.iml
-
+*.xml
 #Git working directory
 
 /Git/

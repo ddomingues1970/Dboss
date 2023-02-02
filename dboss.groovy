@@ -51,11 +51,11 @@ class WorkFlow {
 
         def dataBaseConnectionsUrl = DataBase.getDataBaseConnectionsURL(propertiesFile)
 
-        if (verbose) {
+       /* if (verbose) {
             dataBaseConnectionsUrl.each { key, value ->
                 println "$key : $value"
             }
-        }
+        }*/
 
         if (verbose) {
             println("STEP 2.1 - " + CodeMessage.GETTING_GIT_REPOSITORIES.message() + ": " + propertiesFile)
@@ -63,21 +63,25 @@ class WorkFlow {
 
         def gitRepositories = Git.getGitRepositories(propertiesFile)
 
-        if (verbose) {
+        /*if (verbose) {
             gitRepositories.each { key, value ->
                 println "$key : $value"
             }
-        }
+        }*/
 
         def repository = Util.getJsonObject(propertiesFile, "git_repositories")[options.get("git_repository")]
         def gitUser = options.get("git_user")
         def gitPassword = options.get("git_password")
 
         if (verbose) {
-            println("STEP 3 - " + CodeMessage.CLONING_GIT_REPOSITORIES.message() + ": " + repository)
+            println("STEP 3 - " + CodeMessage.CLONING_GIT_REPOSITORY.message() + ": " + repository)
         }
 
         ret = Git.cloneGitRepository(localGitDirectory, repository, gitUser, gitPassword)
+
+        if (verbose) {
+            println(CodeMessage.GIT_REPOSITORY_CLONED_SUCCESSFULLY.message() + ": " + repository)
+        }
 
         //TODO: Implment other executions
 
@@ -127,8 +131,10 @@ enum CodeMessage {
     VALIDATING_GIT_DIRECTORY(6, 'Validating if Git directory exist.'),
     GETTING_DATABASE_CONNECTIONS_URL(6, 'Getting database connections url.'),
     GETTING_GIT_REPOSITORIES(7, 'Getting git repositories.'),
-    CLONING_GIT_REPOSITORIES(8, 'Cloning git repositories.'),
-    MISSING_REQUIRED_OPTIONS(9, 'Missing required options.')
+    CLONING_GIT_REPOSITORY(8, 'Cloning git repository.'),
+    MISSING_REQUIRED_OPTIONS(9, 'Missing required options.'),
+    CLONING_GIT_REPOSITORY_FAILED(9, 'Cloning git repository failed.'),
+    GIT_REPOSITORY_CLONED_SUCCESSFULLY(9, 'Git repository cloned successfully.')
 
     CodeMessage(int value, String message) {
         this.value = value
@@ -256,16 +262,25 @@ class Git {
         return gitRepositories
     }
 
-    def static cloneGitRepository1(String gitBaseDirectory, String repository, String branch) {
+    def static cloneGitRepository1(String localGitDirectory, String repository, String gitUser, String gitPassword) {
+
+        def encodedUser = URLEncoder.encode(gitUser, "UTF-8")
+        def encodedPassword = URLEncoder.encode(gitPassword, "UTF-8")
+
+        def uri = "https://" + encodedUser + ":" + encodedPassword + "@" + repository
 
         // Create the CredentialsProvider with the given username and password
-        def credentialsProvider = new UsernamePasswordCredentialsProvider("80830170", "senha")
+        def credentialsProvider = new UsernamePasswordCredentialsProvider(encodedUser, encodedPassword)
+
+        def process = ["git", "clone", uri].execute()
+
+        process.toString().println()
 
         // Clone the repository using the Git class
         def git = org.eclipse.jgit.api.Git.cloneRepository()
-                .setDirectory(new File(gitBaseDirectory))
-                .setCredentialsProvider(credentialsProvider)
-                .setURI(repository)
+                .setDirectory(new File(localGitDirectory))
+                //.setCredentialsProvider(credentialsProvider)
+                .setURI(uri)
                 .call()
 
         println("Cloned repository: " + git.getRepository().getDirectory())
@@ -291,10 +306,16 @@ class Git {
         }
 
         process.waitFor()
-        println(output)
+
+        def ret = process.getAt("exitcode")
+
+        if(ret != CodeMessage.SUCCESS.value()) {
+            println(CodeMessage.CLONING_GIT_REPOSITORY_FAILED.message() + ": " + uri.replaceAll(encodedPassword,"*password*"))
+            println(output)
+            System.exit(ret)
+        }
 
         return CodeMessage.SUCCESS.value()
-
     }
 
 }
