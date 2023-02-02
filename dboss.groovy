@@ -9,12 +9,6 @@
 
 import groovy.cli.commons.CliBuilder
 import groovy.json.JsonSlurper
-
-import org.eclipse.jgit.api.Git
-import org.eclipse.jgit.transport.CredentialsProvider
-import org.eclipse.jgit.transport.UsernamePasswordCredentialsProvider
-import org.fusesource.jansi.AnsiRenderer
-import org.eclipse.jgit.api.PullCommand
 import org.eclipse.jgit.api.errors.GitAPIException
 
 
@@ -27,7 +21,6 @@ class Dboss {
         def ret = new WorkFlow().execute(options)
 
         if (options.get("verbose") == "y") {
-            //TODO: Use log.info
             println(CodeMessage.geMessageByValue(ret))
         }
 
@@ -59,12 +52,6 @@ class WorkFlow {
         }
 
         def dataBaseConnectionsUrl = DataBase.getDataBaseConnectionsURL(propertiesFile)
-
-        /* if (verbose) {
-             dataBaseConnectionsUrl.each { key, value ->
-                 println "$key : $value"
-             }
-         }*/
 
         if (verbose) {
             println("STEP 2.1 - " + CodeMessage.GETTING_GIT_REPOSITORIES.message() + ": " + propertiesFile)
@@ -206,13 +193,6 @@ class Options {
             print(CodeMessage.MISSING_REQUIRED_OPTIONS.message())
             System.exit(CodeMessage.MISSING_REQUIRED_OPTIONS.value())
         }
-        /*
-        def REQUIRED_ARGUMENT_COUNT = 9
-            if (options?.arguments()?.size() < REQUIRED_ARGUMENT_COUNT && options?.arguments()?.size() > 1) {
-            print(CodeMessage.MISSING_REQUIRED_OPTIONS.message() + "Arguments count: " + options?.arguments()?.size())
-            System.exit(CodeMessage.MISSING_REQUIRED_OPTIONS.value())
-        }
-        */
 
         optionMap["git_repository"] = options.g ?: options.git_repository
         optionMap["git_user"] = options.u ?: options.git_user
@@ -263,8 +243,6 @@ class DataBase {
     def static getDataBaseConnectionsURL(String propertiesFile) {
 
         def objectName = "database_connections_url"
-
-        //TODO: Validate if file exist
 
         def dataBaseConnectionsUrl = Util.getJsonObject(propertiesFile, objectName)
 

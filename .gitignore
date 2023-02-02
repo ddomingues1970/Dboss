@@ -22,12 +22,10 @@
 /out/
 
 # IntelliJ configuration file
-.ide/
-.ide/.gitignore
+/.ide/
+/.ide/.gitignore
+/.ide/*
+/.ide/libraries/*
+/.ide/libraries/
 *.iml
 *.xml
-#Git working directory
-
-/Git/
-
-
