@@ -13,6 +13,9 @@ import groovy.json.JsonSlurper
 import org.eclipse.jgit.api.Git
 import org.eclipse.jgit.transport.CredentialsProvider
 import org.eclipse.jgit.transport.UsernamePasswordCredentialsProvider
+import org.fusesource.jansi.AnsiRenderer
+import org.eclipse.jgit.api.PullCommand
+import org.eclipse.jgit.api.errors.GitAPIException
 
 
 class Dboss {
@@ -36,6 +39,12 @@ class WorkFlow {
     static int execute(HashMap options) {
 
         def propertiesFile = System.getenv("PWD") + "/dboss.properties.json"
+
+        if(!Util.isFile(propertiesFile)) {
+            println(CodeMessage.PROPERTIES_FILE_DOES_NOT_EXIST.message() + ": " + propertiesFile)
+            System.exit(CodeMessage.PROPERTIES_FILE_DOES_NOT_EXIST.value())
+        }
+
         def localGitDirectory = Util.getJsonObject(propertiesFile, "config")["local_git_directory"]
 
         def verbose = options.get("verbose") == "y"
@@ -51,36 +60,42 @@ class WorkFlow {
 
         def dataBaseConnectionsUrl = DataBase.getDataBaseConnectionsURL(propertiesFile)
 
-       /* if (verbose) {
-            dataBaseConnectionsUrl.each { key, value ->
-                println "$key : $value"
-            }
-        }*/
+        /* if (verbose) {
+             dataBaseConnectionsUrl.each { key, value ->
+                 println "$key : $value"
+             }
+         }*/
 
         if (verbose) {
             println("STEP 2.1 - " + CodeMessage.GETTING_GIT_REPOSITORIES.message() + ": " + propertiesFile)
         }
 
-        def gitRepositories = Git.getGitRepositories(propertiesFile)
-
-        /*if (verbose) {
-            gitRepositories.each { key, value ->
-                println "$key : $value"
-            }
-        }*/
-
-        def repository = Util.getJsonObject(propertiesFile, "git_repositories")[options.get("git_repository")]
+        def gitRepository = Util.getJsonObject(propertiesFile, "git_repositories")[options.get("git_repository")]
         def gitUser = options.get("git_user")
         def gitPassword = options.get("git_password")
 
         if (verbose) {
-            println("STEP 3 - " + CodeMessage.CLONING_GIT_REPOSITORY.message() + ": " + repository)
+            println("STEP 3 - " + CodeMessage.CLONING_GIT_REPOSITORY.message() + ": " + gitRepository)
         }
 
-        ret = Git.cloneGitRepository(localGitDirectory, repository, gitUser, gitPassword)
+        def localGitRepoDir = localGitDirectory + "/" + options.get("git_repository").toString().replace(".git", "")
 
-        if (verbose) {
-            println(CodeMessage.GIT_REPOSITORY_CLONED_SUCCESSFULLY.message() + ": " + repository)
+        ret = Git.cloneGitRepository(localGitDirectory, gitRepository, gitUser, gitPassword, localGitRepoDir)
+
+        if (verbose && ret == CodeMessage.SUCCESS.value()) {
+            println(CodeMessage.GIT_REPOSITORY_CLONED_SUCCESSFULLY.message() + ": " + gitRepository)
+        }
+
+        if (ret == CodeMessage.GIT_DIRECTORY_EXIST.value()) {
+            if (verbose) {
+                println("STEP 3.1 - " + CodeMessage.PULLING_GIT_REPOSITORY.message() + ": " + gitRepository)
+            }
+
+            ret = Git.pullRepository(localGitRepoDir)
+
+            if (verbose) {
+                println(CodeMessage.PULL_WAS_SUCCESSFUL.message())
+            }
         }
 
         //TODO: Implment other executions
@@ -133,16 +148,21 @@ enum CodeMessage {
     GETTING_GIT_REPOSITORIES(7, 'Getting git repositories.'),
     CLONING_GIT_REPOSITORY(8, 'Cloning git repository.'),
     MISSING_REQUIRED_OPTIONS(9, 'Missing required options.'),
-    CLONING_GIT_REPOSITORY_FAILED(9, 'Cloning git repository failed.'),
-    GIT_REPOSITORY_CLONED_SUCCESSFULLY(9, 'Git repository cloned successfully.')
+    CLONING_GIT_REPOSITORY_FAILED(10, 'Cloning git repository failed.'),
+    GIT_REPOSITORY_CLONED_SUCCESSFULLY(11, 'Git repository cloned successfully.'),
+    GIT_DIRECTORY_EXIST(12, 'Git directory exist'),
+    PULLING_GIT_REPOSITORY(13, 'Pulling git repository'),
+    PULL_WAS_SUCCESSFUL(14, 'The pull was successful!'),
+    PULL_WAS_NOT_SUCCESSFUL(15, 'The pull was not successful.'),
+    PROPERTIES_FILE_DOES_NOT_EXIST(16, 'Properties file does not exist.')
 
     CodeMessage(int value, String message) {
         this.value = value
         this.message = message
     }
 
-    private final def value
-    private final def message
+    private final int value
+    private final String message
 
     def value() { return value }
 
@@ -219,6 +239,11 @@ class Util {
         return file.isDirectory()
     }
 
+    static def isFile(String filePath) {
+        def file = new File(filePath)
+        return file.isFile()
+    }
+
     static def createDirectory(String directory) {
         def file = new File(directory)
         return file.mkdir()
@@ -253,48 +278,22 @@ class Git {
 
     def static getGitRepositories(String propertiesFile) {
 
-        def objectName = "git_repositories"
-
-        //TODO: Validate if file exist
-
-        def gitRepositories = Util.getJsonObject(propertiesFile, objectName)
+        def gitRepositories = Util.getJsonObject(propertiesFile, "git_repositories")
 
         return gitRepositories
     }
 
-    def static cloneGitRepository1(String localGitDirectory, String repository, String gitUser, String gitPassword) {
+    def static cloneGitRepository(String localGitDirectory, String gitRepository, String gitUser, String gitPassword, String localGitRepoDir) {
 
         def encodedUser = URLEncoder.encode(gitUser, "UTF-8")
         def encodedPassword = URLEncoder.encode(gitPassword, "UTF-8")
 
-        def uri = "https://" + encodedUser + ":" + encodedPassword + "@" + repository
+        if (Util.isDirectory(localGitRepoDir)) {
+            println(CodeMessage.GIT_DIRECTORY_EXIST.message() + ": " + localGitRepoDir.toString())
+            return CodeMessage.GIT_DIRECTORY_EXIST.value()
+        }
 
-        // Create the CredentialsProvider with the given username and password
-        def credentialsProvider = new UsernamePasswordCredentialsProvider(encodedUser, encodedPassword)
-
-        def process = ["git", "clone", uri].execute()
-
-        process.toString().println()
-
-        // Clone the repository using the Git class
-        def git = org.eclipse.jgit.api.Git.cloneRepository()
-                .setDirectory(new File(localGitDirectory))
-                //.setCredentialsProvider(credentialsProvider)
-                .setURI(uri)
-                .call()
-
-        println("Cloned repository: " + git.getRepository().getDirectory())
-
-        return CodeMessage.SUCCESS.value()
-
-    }
-
-    def static cloneGitRepository(String localGitDirectory, String repository, String gitUser, String gitPassword) {
-
-        def encodedUser = URLEncoder.encode(gitUser, "UTF-8")
-        def encodedPassword = URLEncoder.encode(gitPassword, "UTF-8")
-
-        def uri = "https://" + encodedUser + ":" + encodedPassword + "@" + repository
+        def uri = "https://" + encodedUser + ":" + encodedPassword + "@" + gitRepository
         def processBuilder = new ProcessBuilder("git", "clone", uri.toString())
         processBuilder.directory(new File(localGitDirectory))
         processBuilder.redirectErrorStream(true)
@@ -307,15 +306,37 @@ class Git {
 
         process.waitFor()
 
-        def ret = process.getAt("exitcode")
+        int ret = process.getAt("exitcode")
 
-        if(ret != CodeMessage.SUCCESS.value()) {
-            println(CodeMessage.CLONING_GIT_REPOSITORY_FAILED.message() + ": " + uri.replaceAll(encodedPassword,"*password*"))
+        if (ret != CodeMessage.SUCCESS.value()) {
+            println(CodeMessage.CLONING_GIT_REPOSITORY_FAILED.message() + ": " + uri.replaceAll(encodedPassword, "*password*"))
             println(output)
             System.exit(ret)
         }
 
         return CodeMessage.SUCCESS.value()
+    }
+
+    def static pullRepository(String localGitRepoDir) throws GitAPIException {
+        def git = org.eclipse.jgit.api.Git.open(new File(localGitRepoDir))
+
+        def config = git.getRepository().getConfig();
+        config.setBoolean("http", null, "sslVerify", false);
+        config.save();
+
+        def pullCmd = git.pull()
+        def pullResult = pullCmd.call()
+        git.close()
+
+        if (!pullResult.successful) {
+            println(CodeMessage.PULL_WAS_NOT_SUCCESSFUL.message())
+            println("Fetch status: " + pullResult.fetchResult.toString())
+            println("Merge status: " + pullResult.mergeResult.toString())
+            println("Rebase status: " + pullResult.rebaseResult.toString())
+        }
+
+        return CodeMessage.SUCCESS.value()
+
     }
 
 }
