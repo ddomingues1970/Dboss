@@ -18,7 +18,14 @@ class Dboss {
 
         def options = new Options().getOptions(args)
 
-        def ret = new WorkFlow().execute(options)
+        def propertiesFile = this.getLocation().toString().replace("file:","").replace("groovy", "properties.json")
+
+        if(!Util.isFile(propertiesFile)) {
+            println(CodeMessage.PROPERTIES_FILE_DOES_NOT_EXIST.message() + ": " + propertiesFile)
+            System.exit(CodeMessage.PROPERTIES_FILE_DOES_NOT_EXIST.value())
+        }
+
+        def ret = new WorkFlow().execute(options, propertiesFile)
 
         if (options.get("verbose") == "y") {
             println(CodeMessage.geMessageByValue(ret))
@@ -29,14 +36,7 @@ class Dboss {
 
 class WorkFlow {
 
-    static int execute(HashMap options) {
-
-        def propertiesFile = System.getenv("PWD") + "/dboss.properties.json"
-
-        if(!Util.isFile(propertiesFile)) {
-            println(CodeMessage.PROPERTIES_FILE_DOES_NOT_EXIST.message() + ": " + propertiesFile)
-            System.exit(CodeMessage.PROPERTIES_FILE_DOES_NOT_EXIST.value())
-        }
+    static int execute(HashMap options, String propertiesFile) {
 
         def localGitDirectory = Util.getJsonObject(propertiesFile, "config")["local_git_directory"]
 
