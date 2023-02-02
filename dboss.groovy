@@ -9,6 +9,7 @@
 
 import groovy.cli.commons.CliBuilder
 import groovy.json.JsonSlurper
+import org.eclipse.jgit.api.ListBranchCommand
 import org.eclipse.jgit.api.errors.GitAPIException
 
 
@@ -80,7 +81,9 @@ class WorkFlow {
             }
         }
 
-        //TODO: Implment other executions
+        def gitBranch = options.get("git_branch")
+
+        ret = Validation.validateIfBranchExist(localGitRepoDir, gitBranch)
 
         return ret
 
@@ -124,6 +127,22 @@ class Validation {
 
     }
 
+    static int validateIfBranchExist(String localGitRepoDir, String gitBranch) {
+
+        def branchList = Git.getGitBranchs(localGitRepoDir, gitBranch)
+
+       def foundBranch = branchList[0].find( branch -> {
+            branch.name.contains(gitBranch)
+        })
+
+        if(!foundBranch) {
+            println(CodeMessage.BRANCH_DOES_NOT_EXIST.message() + ": " + gitBranch)
+            System.exit(CodeMessage.BRANCH_DOES_NOT_EXIST.value())
+        }
+
+        return CodeMessage.SUCCESS.value()
+
+    }
 }
 
 enum CodeMessage {
@@ -145,7 +164,8 @@ enum CodeMessage {
     PULLING_GIT_REPOSITORY(13, 'Pulling git repository'),
     PULL_WAS_SUCCESSFUL(14, 'The pull was successful!'),
     PULL_WAS_NOT_SUCCESSFUL(15, 'The pull was not successful.'),
-    PROPERTIES_FILE_DOES_NOT_EXIST(16, 'Properties file does not exist.')
+    PROPERTIES_FILE_DOES_NOT_EXIST(16, 'Properties file does not exist.'),
+    BRANCH_DOES_NOT_EXIST(17, 'Branch does not exist.')
 
     CodeMessage(int value, String message) {
         this.value = value
@@ -318,6 +338,27 @@ class Git {
         }
 
         return CodeMessage.SUCCESS.value()
+
+    }
+
+    def static getGitBranchs(String localGitRepoDir, String branchName) throws GitAPIException {
+        def git = org.eclipse.jgit.api.Git.open(new File(localGitRepoDir))
+
+        def branchListCmd = git.branchList()
+        def branchList = branchListCmd.setListMode(ListBranchCommand.ListMode.ALL).call()
+        git.close()
+
+        def remoteBranches = branchList.findAll { branch ->
+            branch.name.startsWith("refs/remotes/")
+        }.collect { branch ->
+            branch.name.substring("refs/remotes/".length())
+        }
+
+        remoteBranches.each { branch ->
+            println(branch)
+        }
+
+       return Arrays.asList(branchList)
 
     }
 
