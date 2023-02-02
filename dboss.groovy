@@ -17,13 +17,8 @@ class Dboss {
     static void main(String[] args) {
 
         def options = new Options().getOptions(args)
-
         def propertiesFile = this.getLocation().toString().replace("file:","").replace("groovy", "properties.json")
-
-        if(!Util.isFile(propertiesFile)) {
-            println(CodeMessage.PROPERTIES_FILE_DOES_NOT_EXIST.message() + ": " + propertiesFile)
-            System.exit(CodeMessage.PROPERTIES_FILE_DOES_NOT_EXIST.value())
-        }
+        Validation.validatePropertiesFile(propertiesFile)
 
         def ret = new WorkFlow().execute(options, propertiesFile)
 
@@ -94,6 +89,15 @@ class WorkFlow {
 }
 
 class Validation {
+
+    static int validatePropertiesFile(String propertiesFile) {
+
+        if(!Util.isFile(propertiesFile)) {
+            println(CodeMessage.PROPERTIES_FILE_DOES_NOT_EXIST.message() + ": " + propertiesFile)
+            System.exit(CodeMessage.PROPERTIES_FILE_DOES_NOT_EXIST.value())
+        }
+
+    }
 
     static int validateGitDirectory(String directory, boolean verbose) {
 
