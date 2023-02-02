@@ -25,7 +25,6 @@ class Dboss {
                 verbose = true
             }
         })
-          
             
         if (verbose) {
             println("STEP 1 - " + CodeMessage.VALIDATING_ARGUMENT_OPTIONS.message())
@@ -38,7 +37,7 @@ class Dboss {
 
         def ret = new WorkFlow().execute(options, propertiesFile)
 
-        if (options.get("verbose") == "y") {
+        if (verbose) {
             println(CodeMessage.geMessageByValue(ret))
         }
 
