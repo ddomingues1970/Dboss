@@ -25,12 +25,13 @@ class Dboss {
                 verbose = true
             }
         })
-
-        def options = new Options().getOptions(args)
-
+          
+            
         if (verbose) {
             println("STEP 1 - " + CodeMessage.VALIDATING_ARGUMENT_OPTIONS.message())
         }
+
+        def options = new Options().getOptions(args)
 
         def propertiesFile = this.getLocation().toString().replace("file:", "").replace("groovy", "properties.json")
         Validation.validatePropertiesFile(propertiesFile)
