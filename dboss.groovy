@@ -20,15 +20,13 @@ class Dboss {
 
         def verbose = false
 
-        Arrays.asList(args).find( option -> {
-            if(option == "-v") {
+        Arrays.asList(args).find(option -> {
+            if (option == "-v") {
                 verbose = true
             }
         })
-            
-        if (verbose) {
-            println("STEP 1 - " + CodeMessage.VALIDATING_ARGUMENT_OPTIONS.message())
-        }
+
+        Util.printMessage("STEP 1 - " + CodeMessage.VALIDATING_ARGUMENT_OPTIONS.message(), verbose)
 
         def options = new Options().getOptions(args)
 
@@ -37,9 +35,7 @@ class Dboss {
 
         def ret = new WorkFlow().execute(options, propertiesFile)
 
-        if (verbose) {
-            println(CodeMessage.geMessageByValue(ret))
-        }
+        Util.printMessage(CodeMessage.geMessageByValue(ret), verbose)
 
     }
 }
@@ -52,72 +48,60 @@ class WorkFlow {
 
         def verbose = options.get("verbose") == "y"
 
-        if (verbose) {
-            println("STEP 2 - " + CodeMessage.VALIDATING_GIT_DIRECTORY.message() + ": " + localGitDirectory)
-        }
-        def ret = Validation.validateGitDirectory(localGitDirectory, verbose)
+        Util.printMessage("STEP 2 - " + CodeMessage.VALIDATING_GIT_DIRECTORY.message() + ": " + localGitDirectory, verbose)
 
-        if (verbose) {
-            println("STEP 3 - " + CodeMessage.GETTING_DATABASE_CONNECTIONS_URL.message() + ": " + propertiesFile)
-        }
+        def ret = Validation.validateGitDirectory(localGitDirectory)
+
+        Util.printMessage("STEP 3 - " + CodeMessage.GETTING_DATABASE_CONNECTIONS_URL.message() + ": " + propertiesFile, verbose)
 
         def dataBaseConnectionsUrl = DataBase.getDataBaseConnectionsURL(propertiesFile)
 
-        if (verbose) {
-            println("STEP 3.1 - " + CodeMessage.GETTING_GIT_REPOSITORIES.message() + ": " + propertiesFile)
-        }
+        Util.printMessage("STEP 3.1 - " + CodeMessage.GETTING_GIT_REPOSITORIES.message() + ": " + propertiesFile, verbose)
 
         def gitRepository = Util.getJsonObject(propertiesFile, "git_repositories")[options.get("git_repository")]
         def gitUser = options.get("git_user")
         def gitPassword = options.get("git_password")
 
-        if (verbose) {
-            println("STEP 4 - " + CodeMessage.CLONING_GIT_REPOSITORY.message() + ": " + gitRepository)
+        Util.printMessage("STEP 4 - " + CodeMessage.CLONING_GIT_REPOSITORY.message() + ": " + gitRepository, verbose)
+
+        def localGitRepositoryDirectory = localGitDirectory + "/" + options.get("git_repository").toString().replace(".git", "")
+
+        if (!Util.isDirectory(localGitRepositoryDirectory)) {
+
+            this.exit(Git.cloneGitRepository(localGitDirectory, gitRepository, gitUser, gitPassword), localGitDirectory + " " + gitRepository)
+
+            Util.printMessage(CodeMessage.GIT_REPOSITORY_CLONED_SUCCESSFULLY.message() + ": " + gitRepository, verbose)
+
+        } else {
+
+            Util.printMessage("STEP 4.1 - " + CodeMessage.PULLING_GIT_REPOSITORY.message() + ": " + gitRepository, verbose)
+
+            this.exit(Git.pullRepository(localGitRepositoryDirectory), gitRepository)
+
+            Util.printMessage(CodeMessage.PULL_WAS_SUCCESSFUL.message(), verbose)
         }
 
-        def localGitRepoDir = localGitDirectory + "/" + options.get("git_repository").toString().replace(".git", "")
-
-        ret = Git.cloneGitRepository(localGitDirectory, gitRepository, gitUser, gitPassword, localGitRepoDir)
-
-        if (verbose && ret == CodeMessage.SUCCESS.value()) {
-            println(CodeMessage.GIT_REPOSITORY_CLONED_SUCCESSFULLY.message() + ": " + gitRepository)
-        }
-
-        if (ret == CodeMessage.GIT_DIRECTORY_EXIST.value()) {
-
-            //Shoud be in master branch to execute pull command
-            Git.gitCheckoutBranch(localGitRepoDir, "master")
-
-            if (verbose) {
-                println("STEP 4.1 - " + CodeMessage.PULLING_GIT_REPOSITORY.message() + ": " + gitRepository)
-            }
-
-            ret = Git.pullRepository(localGitRepoDir)
-
-            if (verbose) {
-                println(CodeMessage.PULL_WAS_SUCCESSFUL.message())
-            }
-        }
-
-        if (verbose) {
-            println("STEP 5 - " + CodeMessage.SEARCH_FOR_FILES_THAT_WILL_BE_EXECUTED.message() + ": " + gitRepository)
-        }
+        Util.printMessage("STEP 5 - " + CodeMessage.SEARCH_FOR_FILES_THAT_WILL_BE_EXECUTED.message() + ": " + gitRepository, verbose)
 
         def gitBranch = options.get("git_branch")
 
-        if (verbose) {
-            println("STEP 5.1 - " + CodeMessage.VALIDATE_IF_BRANCH_EXIST.message() + ": " + gitBranch)
-        }
-        def fullGitBranchName = Validation.validateIfBranchExist(localGitRepoDir, gitBranch)
+        Util.printMessage("STEP 5.1 - " + CodeMessage.VALIDATE_IF_BRANCH_EXIST.message() + ": " + gitBranch, verbose)
 
-        if (verbose) {
-            println("STEP 5.2 - " + CodeMessage.CHECKOUT_BRANCH.message() + ": " + gitBranch)
-        }
+        def fullGitBranchName = Validation.validateIfBranchExist(localGitRepositoryDirectory, gitBranch)
 
-        ret = Git.gitCheckoutBranch(localGitRepoDir, fullGitBranchName)
+        Util.printMessage("STEP 5.2 - " + CodeMessage.CHECKOUT_BRANCH.message() + ": " + gitBranch, verbose)
+
+        ret = Git.gitCheckoutBranch(localGitRepositoryDirectory, fullGitBranchName)
 
         return ret
 
+    }
+
+    static exit(int ret, String messageDetails) {
+        if(ret != CodeMessage.SUCCESS.value()) {
+            println(CodeMessage.geMessageByValue(ret) + ": " + messageDetails)
+            System.exit(ret)
+        }
     }
 
 }
@@ -127,35 +111,19 @@ class Validation {
     static int validatePropertiesFile(String propertiesFile) {
 
         if (!Util.isFile(propertiesFile)) {
-            println(CodeMessage.PROPERTIES_FILE_DOES_NOT_EXIST.message() + ": " + propertiesFile)
-            System.exit(CodeMessage.PROPERTIES_FILE_DOES_NOT_EXIST.value())
+            WorkFlow.exit(CodeMessage.PROPERTIES_FILE_DOES_NOT_EXIST.value(), propertiesFile)
         }
 
     }
 
-    static int validateGitDirectory(String directory, boolean verbose) {
+    static int validateGitDirectory(String directory) {
 
         if (Util.isDirectory(directory)) {
+
             return CodeMessage.SUCCESS.value()
         }
 
-        if (verbose) {
-            println(CodeMessage.GIT_DIRECTORY_DOES_NOT_EXIST.message() + ":" + directory)
-            println(CodeMessage.CREATING_DIRECTORY.message() + ":" + directory)
-        }
-
-        if (Util.createDirectory(directory)) {
-            if (verbose) {
-                println(CodeMessage.DIRECTORY_CREATED.message() + ":" + directory)
-            }
-            return CodeMessage.SUCCESS.value()
-        }
-
-        println(CodeMessage.CREATING_DIRECTORY_FAILED.message() + " : " + directory)
-        System.exit(CodeMessage.CREATING_DIRECTORY_FAILED.value())
-
-        return CodeMessage.CREATING_DIRECTORY_FAILED.value()
-
+        WorkFlow.exit(CodeMessage.GIT_DIRECTORY_DOES_NOT_EXIST.value(), directory)
     }
 
     static String validateIfBranchExist(String localGitRepoDir, String gitBranch) {
@@ -170,8 +138,7 @@ class Validation {
         })
 
         if (!foundBranch) {
-            println(CodeMessage.BRANCH_DOES_NOT_EXIST.message() + ": " + gitBranch)
-            System.exit(CodeMessage.BRANCH_DOES_NOT_EXIST.value())
+            WorkFlow.exit(CodeMessage.BRANCH_DOES_NOT_EXIST.value(), gitBranch)
         }
 
         return fullGitBranchName.replace("refs/", "")
@@ -224,7 +191,7 @@ enum CodeMessage {
                 return e.message()
             }
         }
-        return null
+        return CodeMessage.FAIL.message()
     }
 
 }
@@ -253,8 +220,7 @@ class Options {
         def options = cli.parse(args)
 
         if (!options) {
-            print(CodeMessage.MISSING_REQUIRED_OPTIONS.message())
-            System.exit(CodeMessage.MISSING_REQUIRED_OPTIONS.value())
+           System.exit(CodeMessage.MISSING_REQUIRED_OPTIONS.value())
         }
 
         optionMap["git_repository"] = options.g ?: options.git_repository
@@ -287,16 +253,17 @@ class Util {
         return file.isFile()
     }
 
-    static def createDirectory(String directory) {
-        def file = new File(directory)
-        return file.mkdir()
-    }
-
     static def getJsonObject(String jsonFileName, String objectName) {
 
         def jsonObject = new JsonSlurper().parse(new File(jsonFileName))[objectName]
 
         return jsonObject
+    }
+
+    static printMessage(String message, boolean verbose) {
+        if (verbose) {
+            println(message)
+        }
     }
 
 }
@@ -333,15 +300,10 @@ class Git {
 
     }
 
-    def static cloneGitRepository(String localGitDirectory, String gitRepository, String gitUser, String gitPassword, String localGitRepoDir) {
+    def static cloneGitRepository(String localGitDirectory, String gitRepository, String gitUser, String gitPassword) {
 
         def encodedUser = URLEncoder.encode(gitUser, "UTF-8")
         def encodedPassword = URLEncoder.encode(gitPassword, "UTF-8")
-
-        if (Util.isDirectory(localGitRepoDir)) {
-            println(CodeMessage.GIT_DIRECTORY_EXIST.message() + ": " + localGitRepoDir.toString())
-            return CodeMessage.GIT_DIRECTORY_EXIST.value()
-        }
 
         def uri = "https://" + encodedUser + ":" + encodedPassword + "@" + gitRepository
         def processBuilder = new ProcessBuilder("git", "clone", uri.toString())
@@ -361,13 +323,17 @@ class Git {
         if (ret != CodeMessage.SUCCESS.value()) {
             println(CodeMessage.CLONING_GIT_REPOSITORY_FAILED.message() + ": " + uri.replaceAll(encodedPassword, "*password*"))
             println(output)
-            System.exit(ret)
+            return ret
         }
 
         return CodeMessage.SUCCESS.value()
     }
 
     def static pullRepository(String localGitRepoDir) throws GitAPIException {
+
+        //Shoud be in master branch to execute pull command
+        Git.gitCheckoutBranch(localGitRepoDir, "master")
+
         def git = org.eclipse.jgit.api.Git.open(new File(localGitRepoDir))
 
         def config = git.getRepository().getConfig();
@@ -383,6 +349,7 @@ class Git {
             println("Fetch status: " + pullResult.fetchResult.toString())
             println("Merge status: " + pullResult.mergeResult.toString())
             println("Rebase status: " + pullResult.rebaseResult.toString())
+            return CodeMessage.PULL_WAS_NOT_SUCCESSFUL.value()
         }
 
         return CodeMessage.SUCCESS.value()
