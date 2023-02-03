@@ -124,7 +124,10 @@ class Validation {
 
         def branchList = Git.getGitBranches(localGitRepoDir, gitBranch)
 
-        def fullGitBranchName = branchList.find({ it == gitBranch })
+        def fullGitBranchName = branchList.find({
+            def nameSplit = it.split("/")
+            def size = nameSplit.size() -1
+            nameSplit[size] == gitBranch })
 
         if (!fullGitBranchName) {
             WorkFlow.exit(CodeMessage.BRANCH_DOES_NOT_EXIST.value(), gitBranch)
@@ -356,8 +359,7 @@ class Git {
         def branchNameList = new ArrayList<String>()
 
         branchList.each {
-            def splitedName = it.name.split("/")
-            branchNameList.add(splitedName[splitedName.size() - 1])
+           branchNameList.add(it.name)
         }
 
         return branchNameList
