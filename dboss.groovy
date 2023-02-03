@@ -18,13 +18,7 @@ class Dboss {
 
     static void main(String[] args) {
 
-        def verbose = false
-
-        Arrays.asList(args).find(option -> {
-            if (option == "-v") {
-                verbose = true
-            }
-        })
+        def verbose = args.find({ it == "-y" })?.isEmpty() ? false : true
 
         Util.printMessage("STEP 1 - " + CodeMessage.VALIDATING_ARGUMENT_OPTIONS.message(), verbose)
 
@@ -98,7 +92,7 @@ class WorkFlow {
     }
 
     static exit(int ret, String messageDetails) {
-        if(ret != CodeMessage.SUCCESS.value()) {
+        if (ret != CodeMessage.SUCCESS.value()) {
             println(CodeMessage.geMessageByValue(ret) + ": " + messageDetails)
             System.exit(ret)
         }
@@ -129,15 +123,10 @@ class Validation {
     static String validateIfBranchExist(String localGitRepoDir, String gitBranch) {
 
         def branchList = Git.getGitBranches(localGitRepoDir, gitBranch)
-        String fullGitBranchName
 
-        def foundBranch = branchList[0].find(branch -> {
-            if (branch.name.contains(gitBranch)) {
-                fullGitBranchName = branch.name
-            }
-        })
+        def fullGitBranchName = branchList.find({ it == gitBranch })
 
-        if (!foundBranch) {
+        if (!fullGitBranchName) {
             WorkFlow.exit(CodeMessage.BRANCH_DOES_NOT_EXIST.value(), gitBranch)
         }
 
@@ -220,7 +209,7 @@ class Options {
         def options = cli.parse(args)
 
         if (!options) {
-           System.exit(CodeMessage.MISSING_REQUIRED_OPTIONS.value())
+            System.exit(CodeMessage.MISSING_REQUIRED_OPTIONS.value())
         }
 
         optionMap["git_repository"] = options.g ?: options.git_repository
@@ -252,6 +241,7 @@ class Util {
         def file = new File(filePath)
         return file.isFile()
     }
+
 
     static def getJsonObject(String jsonFileName, String objectName) {
 
@@ -363,7 +353,14 @@ class Git {
         def branchList = branchListCmd.setListMode(ListBranchCommand.ListMode.ALL).call()
         git.close()
 
-        return Arrays.asList(branchList)
+        def branchNameList = new ArrayList<String>()
+
+        branchList.each {
+            def splitedName = it.name.split("/")
+            branchNameList.add(splitedName[splitedName.size() - 1])
+        }
+
+        return branchNameList
 
     }
 
